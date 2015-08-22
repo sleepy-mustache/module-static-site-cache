@@ -36,7 +36,7 @@ function preprocess() {
 		if (time() - $created > $cleanInterval) {
 			rrmdir($dir);
 		} else {
-			echo "<!-- Cache Expiration: " . ($cleanInterval - (time() - $created)) . " seconds -->";
+			header("SM-Cache Expires: " . ($cleanInterval - (time() - $created)) . " seconds.");
 		}
 	}
 
@@ -56,21 +56,22 @@ function postprocess() {
 	$file = $uri . '_' . $_SERVER['QUERY_STRING'] . '.html';
 	$cachefile = $root . $cachedir . $_SERVER['SERVER_NAME'] . $file;
 
-	$full_html = ob_get_flush() . "<!-- StaticCached -->";
+	$full_html = ob_get_flush() . "\n<!-- StaticCached -->";
 
-	if (!is_dir(dirname($cachefile))) {
-		if (!mkdir(dirname($cachefile), 0777, true)) {
-			die('StaticCache: Cannot make directory.');
-		}
+	if (!is_dir(dirname($cachefile)) && !mkdir(dirname($cachefile), 0777, true)) {
+		throw new \Exception('StaticCache: Cannot make directory.');
 	}
 
-	$static = fopen($cachefile, "w") or die("StaticCache: Unable to open file!");;
+	if (!$static = fopen($cachefile, "w")) {
+		throw new \Exception("StaticCache: Unable to open file!");
+	}
+
 	fwrite($static, $full_html);
 	fclose($static);
 }
 
 
-if (ENV === "LIVE") {
+if (\Sleepy\SM::isLive()) {
 	\Sleepy\Hook::doAction('sleepy_preprocess',  '\Module\StaticCache\preprocess' );
 	\Sleepy\Hook::doAction('sleepy_postprocess', '\Module\StaticCache\postprocess');
 }
